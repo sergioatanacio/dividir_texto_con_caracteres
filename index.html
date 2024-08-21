@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Divisor de Texto Avanzado</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-bold mb-4">Divisor de Texto Avanzado</h1>
+        <div class="flex space-x-4">
+            <div class="w-3/4">
+                <div class="mb-4">
+                    <label for="charLimit" class="block text-sm font-medium text-gray-700">Límite de caracteres:</label>
+                    <input type="number" id="charLimit" value="1500" min="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                </div>
+                <textarea id="inputText" class="w-full h-40 p-2 border rounded mb-4" placeholder="Ingrese su texto aquí..."></textarea>
+                <div class="flex space-x-2 mb-4 flex-wrap">
+                    <button id="divideBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mb-2">Dividir Texto</button>
+                    <button id="saveTextBtn" class="bg-teal-500 text-white px-4 py-2 rounded hover:bg-teal-600 mb-2">Guardar Texto</button>
+                    <button id="copyAllBtn" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mb-2">Copiar Todo</button>
+                    <button id="resetBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 mb-2">Reiniciar</button>
+                    <button id="undoBtn" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 mb-2">Deshacer</button>
+                    <button id="redoBtn" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 mb-2">Rehacer</button>
+                    <button id="saveStateBtn" class="bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600 mb-2">Guardar Estado</button>
+                    <button id="loadStateBtn" class="bg-pink-500 text-white px-4 py-2 rounded hover:bg-pink-600 mb-2">Cargar Estado</button>
+                </div>
+                <div id="stats" class="mb-4 text-sm text-gray-600"></div>
+                <div id="output" class="mt-8"></div>
+            </div>
+            <div class="w-1/4">
+                <h2 class="text-xl font-bold mb-2">Textos Guardados</h2>
+                <div id="savedTexts" class="space-y-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const inputText = document.getElementById('inputText');
+        const charLimit = document.getElementById('charLimit');
+        const divideBtn = document.getElementById('divideBtn');
+        const saveTextBtn = document.getElementById('saveTextBtn');
+        const copyAllBtn = document.getElementById('copyAllBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const undoBtn = document.getElementById('undoBtn');
+        const redoBtn = document.getElementById('redoBtn');
+        const saveStateBtn = document.getElementById('saveStateBtn');
+        const loadStateBtn = document.getElementById('loadStateBtn');
+        const output = document.getElementById('output');
+        const stats = document.getElementById('stats');
+        const savedTexts = document.getElementById('savedTexts');
+
+        let history = [];
+        let historyIndex = -1;
+        let savedTextsList = [];
+
+        function updateStats() {
+            const text = inputText.value;
+            const wordCount = text.trim().split(/\s+/).length;
+            const charCount = text.length;
+            stats.textContent = `Palabras: ${wordCount} | Caracteres: ${charCount}`;
+        }
+
+        function saveToHistory() {
+            history = history.slice(0, historyIndex + 1);
+            history.push(inputText.value);
+            historyIndex++;
+            updateUndoRedoButtons();
+        }
+
+        function updateUndoRedoButtons() {
+            undoBtn.disabled = historyIndex <= 0;
+            redoBtn.disabled = historyIndex >= history.length - 1;
+        }
+
+        inputText.addEventListener('input', () => {
+            updateStats();
+            saveToHistory();
+        });
+
+        undoBtn.addEventListener('click', () => {
+            if (historyIndex > 0) {
+                historyIndex--;
+                inputText.value = history[historyIndex];
+                updateStats();
+                updateUndoRedoButtons();
+            }
+        });
+
+        redoBtn.addEventListener('click', () => {
+            if (historyIndex < history.length - 1) {
+                historyIndex++;
+                inputText.value = history[historyIndex];
+                updateStats();
+                updateUndoRedoButtons();
+            }
+        });
+
+        function saveTemporaryText() {
+            const text = inputText.value;
+            if (text.trim()) {
+                savedTextsList.push(text);
+                updateSavedTextsList();
+            }
+        }
+
+        function updateSavedTextsList() {
+            savedTexts.innerHTML = '';
+            savedTextsList.forEach((text, index) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between bg-white p-2 rounded shadow';
+                div.innerHTML = `
+                    <button class="text-blue-500 hover:text-blue-700">${text.substring(0, 20)}...</button>
+                    <button class="text-red-500 hover:text-red-700">❌</button>
+                `;
+                div.querySelector('button:first-child').addEventListener('click', () => loadSavedText(index));
+                div.querySelector('button:last-child').addEventListener('click', () => removeSavedText(index));
+                savedTexts.appendChild(div);
+            });
+        }
+
+        function loadSavedText(index) {
+            inputText.value = savedTextsList[index];
+            updateStats();
+            saveToHistory();
+        }
+
+        function removeSavedText(index) {
+            if (confirm('¿Estás seguro de que quieres eliminar este texto guardado?')) {
+                savedTextsList.splice(index, 1);
+                updateSavedTextsList();
+            }
+        }
+
+        saveTextBtn.addEventListener('click', () => {
+            saveTemporaryText();
+        });
+
+        divideBtn.addEventListener('click', () => {
+            const text = inputText.value;
+            const limit = parseInt(charLimit.value);
+            const sections = [];
+            for (let i = 0; i < text.length; i += limit) {
+                sections.push(text.slice(i, i + limit));
+            }
+            
+            output.innerHTML = '';
+            sections.forEach((section, index) => {
+                const card = document.createElement('div');
+                card.className = 'bg-white p-4 rounded shadow mb-4';
+                card.innerHTML = `
+                    <h3 class="font-bold mb-2">Sección ${index + 1}</h3>
+                    <p class="mb-2 whitespace-pre-wrap">${section}</p>
+                    <div class="flex items-center">
+                        <button class="copy-btn bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 mr-2">Copiar</button>
+                        <input type="checkbox" class="copy-check w-5 h-5">
+                    </div>
+                `;
+                output.appendChild(card);
+
+                const copyBtn = card.querySelector('.copy-btn');
+                const copyCheck = card.querySelector('.copy-check');
+
+                copyBtn.addEventListener('click', () => {
+                    navigator.clipboard.writeText(section).then(() => {
+                        copyCheck.checked = true;
+                        copyBtn.textContent = 'Copiado';
+                        setTimeout(() => {
+                            copyBtn.textContent = 'Copiar';
+                        }, 2000);
+                    });
+                });
+
+                copyCheck.addEventListener('change', () => {
+                    // Permite desmarcar manualmente
+                });
+            });
+        });
+
+        copyAllBtn.addEventListener('click', () => {
+            const allText = Array.from(output.querySelectorAll('p'))
+                .map(p => p.textContent)
+                .join('\n\n');
+            navigator.clipboard.writeText(allText).then(() => {
+                copyAllBtn.textContent = 'Todo Copiado';
+                setTimeout(() => {
+                    copyAllBtn.textContent = 'Copiar Todo';
+                }, 2000);
+            });
+        });
+
+        resetBtn.addEventListener('click', () => {
+            inputText.value = '';
+            output.innerHTML = '';
+            updateStats();
+            saveToHistory();
+        });
+
+        saveStateBtn.addEventListener('click', () => {
+            const state = {
+                inputText: inputText.value,
+                charLimit: charLimit.value,
+                savedTexts: savedTextsList,
+                dividedSections: Array.from(output.querySelectorAll('p')).map(p => p.textContent)
+            };
+            const blob = new Blob([JSON.stringify(state)], {type: "application/json;charset=utf-8"});
+            saveAs(blob, "texto_dividido_estado.json");
+        });
+
+        loadStateBtn.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = readerEvent => {
+                    const content = readerEvent.target.result;
+                    const state = JSON.parse(content);
+                    inputText.value = state.inputText;
+                    charLimit.value = state.charLimit;
+                    savedTextsList = state.savedTexts;
+                    updateSavedTextsList();
+                    updateStats();
+                    saveToHistory();
+                    
+                    output.innerHTML = '';
+                    state.dividedSections.forEach((section, index) => {
+                        const card = document.createElement('div');
+                        card.className = 'bg-white p-4 rounded shadow mb-4';
+                        card.innerHTML = `
+                            <h3 class="font-bold mb-2">Sección ${index + 1}</h3>
+                            <p class="mb-2 whitespace-pre-wrap">${section}</p>
+                            <div class="flex items-center">
+                                <button class="copy-btn bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 mr-2">Copiar</button>
+                                <input type="checkbox" class="copy-check w-5 h-5">
+                            </div>
+                        `;
+                        output.appendChild(card);
+                    });
+                }
+                reader.readAsText(file);
+            }
+            input.click();
+        });
+
+        updateStats();
+        updateUndoRedoButtons();
+    </script>
+</body>
+</html> 
